@@ -17,6 +17,7 @@ all:
 #embedded @make -s --no-print-directory build -C 11-fontsdf
 	@make -s --no-print-directory build -C 12-lod
 	@make -s --no-print-directory build -C 13-stencil
+	@make -s --no-print-directory build -C 13a-portals
 	@make -s --no-print-directory build -C 14-shadowvolumes
 	@make -s --no-print-directory build -C 15-shadowmaps-simple
 	@make -s --no-print-directory build -C 16-shadowmaps
@@ -68,6 +69,7 @@ rebuild:
 #embedded @make -s --no-print-directory rebuild -C 11-fontsdf
 	@make -s --no-print-directory rebuild -C 12-lod
 	@make -s --no-print-directory rebuild -C 13-stencil
+	@make -s --no-print-directory rebuild -C 13a-portals
 	@make -s --no-print-directory rebuild -C 14-shadowvolumes
 	@make -s --no-print-directory rebuild -C 15-shadowmaps-simple
 	@make -s --no-print-directory rebuild -C 16-shadowmaps

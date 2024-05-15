@@ -545,6 +545,7 @@ or _OPTIONS["with-combined-examples"] then
 		, "11-fontsdf"
 		, "12-lod"
 		, "13-stencil"
+		, "13a-portals"
 		, "14-shadowvolumes"
 		, "15-shadowmaps-simple"
 		, "16-shadowmaps"
