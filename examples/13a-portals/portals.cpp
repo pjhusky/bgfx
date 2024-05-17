@@ -800,45 +800,50 @@ public:
 		return 0;
 	}
 
+	void UpdateImGui()
+	{
+		imguiBeginFrame( m_mouseState.m_mx
+			, m_mouseState.m_my
+			, (m_mouseState.m_buttons[entry::MouseButton::Left] ? IMGUI_MBUT_LEFT : 0)
+			| (m_mouseState.m_buttons[entry::MouseButton::Right] ? IMGUI_MBUT_RIGHT : 0)
+			| (m_mouseState.m_buttons[entry::MouseButton::Middle] ? IMGUI_MBUT_MIDDLE : 0)
+			, m_mouseState.m_mz
+			, uint16_t( m_viewState.m_width )
+			, uint16_t( m_viewState.m_height )
+		);
+
+		showExampleDialog( this );
+
+		ImGui::SetNextWindowPos(
+			ImVec2( m_viewState.m_width - m_viewState.m_width / 5.0f - 10.0f, 10.0f )
+			, ImGuiCond_FirstUseEver
+		);
+		ImGui::SetNextWindowSize(
+			ImVec2( m_viewState.m_width / 5.0f, m_viewState.m_height / 2.0f )
+			, ImGuiCond_FirstUseEver
+		);
+		ImGui::Begin( "Settings"
+			, NULL
+			, 0
+		);
+
+		m_numLights = 4;
+
+		ImGui::SliderInt( "Lights", &m_numLights, 1, MAX_NUM_LIGHTS );
+
+		ImGui::Checkbox( "Update lights", &m_updateLights );
+		ImGui::Checkbox( "Update scene", &m_updateScene );
+
+		ImGui::End();
+
+		imguiEndFrame();
+	}
+
 	virtual bool update() override
 	{
 		if (!entry::processEvents(m_viewState.m_width, m_viewState.m_height, m_debug, m_reset, &m_mouseState) )
 		{
-			imguiBeginFrame(m_mouseState.m_mx
-				,  m_mouseState.m_my
-				, (m_mouseState.m_buttons[entry::MouseButton::Left  ] ? IMGUI_MBUT_LEFT   : 0)
-				| (m_mouseState.m_buttons[entry::MouseButton::Right ] ? IMGUI_MBUT_RIGHT  : 0)
-				| (m_mouseState.m_buttons[entry::MouseButton::Middle] ? IMGUI_MBUT_MIDDLE : 0)
-				,  m_mouseState.m_mz
-				, uint16_t(m_viewState.m_width)
-				, uint16_t(m_viewState.m_height)
-				);
-
-			showExampleDialog(this);
-
-			ImGui::SetNextWindowPos(
-				  ImVec2(m_viewState.m_width - m_viewState.m_width / 5.0f - 10.0f, 10.0f)
-				, ImGuiCond_FirstUseEver
-				);
-			ImGui::SetNextWindowSize(
-				  ImVec2(m_viewState.m_width / 5.0f, m_viewState.m_height / 2.0f)
-				, ImGuiCond_FirstUseEver
-				);
-			ImGui::Begin("Settings"
-				, NULL
-				, 0
-				);
-
-			m_numLights = 4;
-
-			ImGui::SliderInt("Lights", &m_numLights, 1, MAX_NUM_LIGHTS);
-
-			ImGui::Checkbox("Update lights", &m_updateLights);
-			ImGui::Checkbox("Update scene",  &m_updateScene);
-
-			ImGui::End();
-
-			imguiEndFrame();
+			UpdateImGui();
 
 			s_uniforms.submitConstUniforms();
 
