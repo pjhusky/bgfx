@@ -753,7 +753,7 @@ public:
 		// Set view and projection matrices.
 		const float aspect = float(m_viewState.m_width)/float(m_viewState.m_height);
 		const bgfx::Caps* caps = bgfx::getCaps();
-		bx::mtxProj(m_viewState.m_proj, 60.0f, aspect, 0.1f, 100.0f, caps->homogeneousDepth);
+		bx::mtxProj(m_viewState.m_proj, 60.0f, aspect, 0.1f, 10000.0f, caps->homogeneousDepth);
 
 		cameraCreate();
 		cameraSetPosition({ 0.0f, 18.0f, -40.0f });
@@ -887,19 +887,46 @@ public:
 			}
 			bx::memCopy(s_uniforms.m_lightPosRadius, lightPosRadius, numLights * 4*sizeof(float) );
 
-			// Floor position.
 			float floorMtx[16];
 			bx::mtxSRT(floorMtx
 				, 20.0f  //scaleX
 				, 20.0f  //scaleY
 				, 20.0f  //scaleZ
-				, 0.0f   //rotX
-				, 0.0f   //rotY
+				, 0.0f //rotX
+				, 0.0f //rotY
 				, 0.0f   //rotZ
 				, 0.0f   //translateX
 				, 0.0f   //translateY
 				, 0.0f   //translateZ
+			);
+
+			// Portal 1 position.
+			float portal1_Mtx[16];
+			bx::mtxSRT(portal1_Mtx
+				, 10.0f  //scaleX
+				, 10.0f  //scaleY
+				, 10.0f  //scaleZ
+				, bx::kPiHalf   //rotX
+				, 1.6f * bx::kPiQuarter   //rotY
+				, 0.0f   //rotZ
+				, -25.0f   //translateX
+				, 5.0f   //translateY
+				, 20.0f   //translateZ
 				);
+
+			// Portal 2 position.
+			float portal2_Mtx[16];
+			bx::mtxSRT(portal2_Mtx
+				, 10.0f  //scaleX
+				, 10.0f  //scaleY
+				, 10.0f  //scaleZ
+				, bx::kPiHalf   //rotX
+				, -1.6f * bx::kPiQuarter   //rotY
+				, 0.0f   //rotZ
+				, 25.0f   //translateX
+				, 5.0f   //translateY
+				, 20.0f   //translateZ
+			);
 
 			// Bunny position.
 			float bunnyMtx[16];
@@ -969,7 +996,7 @@ public:
 			s_uniforms.m_color[2] = 0.60f;
 
 			{
-				// First pass - Draw plane.
+			#if 0	//### First pass - Draw plane.
 
 				// Setup params for this scene.
 				s_uniforms.m_params.m_ambientPass = 1.0f;
@@ -981,8 +1008,9 @@ public:
 					, m_programColorBlack
 					, s_renderStates[RenderState::StencilReflection_CraftStencil]
 					);
+			#endif
 
-				// Second pass - Draw reflected objects.
+			#if 0	//### Second pass - Draw reflected objects.
 
 				// Clear depth from previous pass.
 				clearView(RENDER_VIEWID_RANGE1_PASS_1, BGFX_CLEAR_DEPTH, m_clearValues);
@@ -1022,9 +1050,12 @@ public:
 
 				// Set lights back.
 				bx::memCopy(s_uniforms.m_lightPosRadius, lightPosRadius, numLights * 4*sizeof(float) );
-				// Third pass - Blend plane.
 
-				// Floor.
+			#endif
+
+			#if 1	//### Third pass - Blend plane.
+
+				// Portal
 				m_hplaneMesh.submit(RENDER_VIEWID_RANGE1_PASS_2
 					, floorMtx
 					, m_programTextureLighting
@@ -1032,10 +1063,28 @@ public:
 					, m_fieldstoneTex
 					);
 
-				// Fourth pass - Draw everything else but the plane.
+				// Portal
+				m_hplaneMesh.submit(RENDER_VIEWID_RANGE1_PASS_2
+					, portal1_Mtx
+					, m_programTextureLighting
+					, s_renderStates[RenderState::StencilReflection_BlendPlane]
+					, m_fieldstoneTex
+				);
+
+				m_hplaneMesh.submit(RENDER_VIEWID_RANGE1_PASS_2
+					, portal2_Mtx
+					, m_programTextureLighting
+					, s_renderStates[RenderState::StencilReflection_BlendPlane]
+					, m_fieldstoneTex
+				);
+
+			#endif
+
+			#if 1//### Fourth pass - Draw everything else but the plane.
 
 				// Bunny.
-				m_bunnyMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
+				//m_bunnyMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
+				m_bunnyMesh.submit(RENDER_VIEWID_RANGE1_PASS_2
 					, bunnyMtx
 					, m_programColorLighting
 					, s_renderStates[RenderState::StencilReflection_DrawScene]
@@ -1044,12 +1093,15 @@ public:
 				// Columns.
 				for (uint8_t ii = 0; ii < 4; ++ii)
 				{
-					m_columnMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
+					//m_columnMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
+					m_columnMesh.submit(RENDER_VIEWID_RANGE1_PASS_2
 						, columnMtx[ii]
 						, m_programColorLighting
 						, s_renderStates[RenderState::StencilReflection_DrawScene]
 						);
 				}
+			#endif
+
 
 			}
 
