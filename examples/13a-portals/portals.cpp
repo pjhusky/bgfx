@@ -968,23 +968,6 @@ public:
 					);
 			}
 
-			const uint8_t numCubes = 9;
-			float cubeMtx[numCubes][16];
-			for (uint16_t ii = 0; ii < numCubes; ++ii)
-			{
-				bx::mtxSRT(cubeMtx[ii]
-					, 1.0f
-					, 1.0f
-					, 1.0f
-					, 0.0f
-					, 0.0f
-					, 0.0f
-					, bx::sin(ii * 2.0f + 13.0f - sceneTimeAccumulator) * 13.0f
-					, 4.0f
-					, bx::cos(ii * 2.0f + 13.0f - sceneTimeAccumulator) * 13.0f
-					);
-			}
-
 			// Make sure at the beginning everything gets cleared.
 			clearView(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL, m_clearValues);
 			bgfx::touch(0);
