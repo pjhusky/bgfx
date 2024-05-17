@@ -753,6 +753,9 @@ restart:
 						handle = key->m_handle;
 
 						inputSetKeyState(key->m_key, key->m_modifiers, key->m_down);
+						
+						if ( inputGetKeyState( Key::Esc ) ) { return true; }
+
 					}
 					break;
 
