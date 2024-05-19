@@ -619,11 +619,24 @@ namespace entry
 				case WM_USER_WINDOW_SET_POS:
 					{
 						Msg* msg = (Msg*)_lparam;
-						SetWindowPos(m_hwnd[_wparam], 0, msg->m_x, msg->m_y, 0, 0
+
+						// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa
+						// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmonitorinfoa
+						// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfofordpi
+						RECT retVal;
+						BOOL queryResult = SystemParametersInfoA(
+							SPI_GETWORKAREA, //[in]      UINT  uiAction,
+							0, // [in]      UINT  uiParam,
+							&retVal, //[in, out] PVOID pvParam,
+							0 //[in]      UINT  fWinIni
+						);
+						
+						SetWindowPos(m_hwnd[_wparam], 0, msg->m_x + retVal.left, msg->m_y + retVal.top, 0, 0
 							, SWP_NOACTIVATE
 							| SWP_NOOWNERZORDER
 							| SWP_NOSIZE
 							);
+						//SetForegroundWindow(m_hwnd[_wparam]);
 						delete msg;
 					}
 					break;
