@@ -718,7 +718,7 @@ public:
 
 		m_programTextureLighting = loadProgram("vs_stencil_texture_lighting", "fs_stencil_texture_lighting");
 		m_shaderProg_coloredLights   = loadProgram("vs_stencil_color_lighting",   "fs_stencil_color_lighting"  );
-		m_programColorTexture    = loadProgram("vs_stencil_color_texture",    "fs_stencil_color_texture"   );
+		m_shaderProg_colorTexture    = loadProgram("vs_stencil_color_texture",    "fs_stencil_color_texture"   );
 		m_programColorBlack      = loadProgram("vs_stencil_color",            "fs_stencil_color_black"     );
 		m_shaderProg_textured         = loadProgram("vs_stencil_texture",          "fs_stencil_texture"         );
 
@@ -785,7 +785,7 @@ public:
 
 		bgfx::destroy(m_programTextureLighting);
 		bgfx::destroy(m_shaderProg_coloredLights);
-		bgfx::destroy(m_programColorTexture);
+		bgfx::destroy(m_shaderProg_colorTexture);
 		bgfx::destroy(m_programColorBlack);
 		bgfx::destroy(m_shaderProg_textured);
 
@@ -845,6 +845,271 @@ public:
 		// set new stencil ref val
 		stencilRenderState &= ~BGFX_STENCIL_FUNC_REF_MASK;
 		stencilRenderState |= BGFX_STENCIL_FUNC_REF( newVal );
+	}
+
+	void DrawScene1( const bgfx::ViewId myViewPass, const float  floorMtx[16], const float  bunnyMtx[16] ) {
+		{ // draw Scene 1
+
+		  // using same view pass as previous render calls => just set the same val and don't need to setup views and RTs
+		  //const int32_t myViewPass = 0; // note: may be the same as "initialPass"
+
+			bgfx::touch( myViewPass );
+
+			// Setup views and render targets. => necessary when new view pass is used!
+			bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			bgfx::setViewTransform( myViewPass, m_viewState.m_view, m_viewState.m_proj );
+
+
+			// Set uniforms
+			s_uniforms.submitPerDrawUniforms(); // seems not to be needed...
+
+			{ // draw groundplane
+			  // Set texture
+				bgfx::setTexture( 0, s_texColorUniformHandle, m_figureTex );
+
+				// Set model matrix for rendering.
+				bgfx::setTransform( floorMtx );
+				bgfx::setIndexBuffer( m_hplaneMesh.m_groups[0].m_ibh );
+				bgfx::setVertexBuffer( 0, m_hplaneMesh.m_groups[0].m_vbh );
+
+				// Apply render state
+				const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+				bgfx::setStencil(
+					renderState.mFrontStencil,
+					renderState.mBackStencil );
+				bgfx::setState(
+					renderState.mState,
+					renderState.mBlendFactorRgba );
+
+				// Submit
+				bgfx::submit( myViewPass, m_shaderProg_coloredLights );
+			}
+			{ // draw bunny
+			  //m_bunnyMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
+			  //	, bunnyMtx
+			  //	, m_shaderProg_coloredLights
+			  //	, s_renderStates[RenderState::StencilReflection_DrawScene]
+			  //);
+
+			#if 0
+				for (int32_t groupIdx = 0; groupIdx < m_bunnyMesh.m_groups.size(); groupIdx++) {
+
+					// Set model matrix for rendering.
+					bgfx::setTransform( bunnyMtx );
+
+					// Apply render state
+					const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+					bgfx::setStencil(
+						renderState.mFrontStencil,
+						renderState.mBackStencil );
+					bgfx::setState(
+						renderState.mState,
+						renderState.mBlendFactorRgba );
+
+
+					bgfx::setIndexBuffer( m_bunnyMesh.m_groups[groupIdx].m_ibh );
+					bgfx::setVertexBuffer( 0, m_bunnyMesh.m_groups[groupIdx].m_vbh );
+					// Submit
+					bgfx::submit( myViewPass, m_shaderProg_coloredLights );
+				}
+			#else
+			  // keep (most) state after each submit!
+			  // Set model matrix for rendering.
+				bgfx::setTransform( bunnyMtx );
+
+				// Apply render state
+				const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+				bgfx::setStencil(
+					renderState.mFrontStencil,
+					renderState.mBackStencil );
+				bgfx::setState(
+					renderState.mState,
+					renderState.mBlendFactorRgba );
+
+				const uint32_t sortingDepth = 0;
+				for (int32_t groupIdx = 0; groupIdx < m_bunnyMesh.m_groups.size(); groupIdx++) {
+					bgfx::setIndexBuffer( m_bunnyMesh.m_groups[groupIdx].m_ibh );
+					bgfx::setVertexBuffer( 0, m_bunnyMesh.m_groups[groupIdx].m_vbh );
+					// Submit
+					bgfx::submit( myViewPass, m_shaderProg_coloredLights, sortingDepth, BGFX_DISCARD_NONE );
+				}
+			#endif
+
+				//// Columns.
+				//for (uint8_t ii = 0; ii < 4; ++ii)
+				//{
+				//	//m_columnMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
+				//	m_columnMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
+				//		, columnMtx[ii]
+				//		, m_shaderProg_coloredLights
+				//		, s_renderStates[RenderState::StencilReflection_DrawScene]
+				//	);
+				//}
+			}
+		}
+	}
+
+	void DrawScene1StateKeep( const bgfx::ViewId myViewPass, const float  floorMtx[16], const float  bunnyMtx[16] ) {
+		{ // draw Scene 1
+
+		  // using same view pass as previous render calls => just set the same val and don't need to setup views and RTs
+		  //const int32_t myViewPass = 0; // note: may be the same as "initialPass"
+
+			const uint32_t sortingDepth = 0;
+
+			bgfx::touch( myViewPass );
+
+			// Setup views and render targets. => necessary when new view pass is used!
+			bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			bgfx::setViewTransform( myViewPass, m_viewState.m_view, m_viewState.m_proj );
+
+
+			// Set uniforms
+			s_uniforms.submitPerDrawUniforms(); // seems not to be needed...
+
+			{ // draw groundplane
+			  // Set texture
+				bgfx::setTexture( 0, s_texColorUniformHandle, m_figureTex );
+
+				// Set model matrix for rendering.
+				bgfx::setTransform( floorMtx );
+				bgfx::setIndexBuffer( m_hplaneMesh.m_groups[0].m_ibh );
+				bgfx::setVertexBuffer( 0, m_hplaneMesh.m_groups[0].m_vbh );
+
+				// Apply render state
+				const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+				bgfx::setStencil(
+					renderState.mFrontStencil,
+					renderState.mBackStencil );
+				bgfx::setState(
+					renderState.mState,
+					renderState.mBlendFactorRgba );
+
+				// Submit
+				bgfx::submit( myViewPass, m_shaderProg_coloredLights, sortingDepth, BGFX_DISCARD_NONE );
+			}
+			{ 
+			  // keep (most) state after each submit!
+			  // Set model matrix for rendering.
+				bgfx::setTransform( bunnyMtx );
+
+			#if 0// Apply render state
+				const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+				bgfx::setStencil(
+					renderState.mFrontStencil,
+					renderState.mBackStencil );
+				bgfx::setState(
+					renderState.mState,
+					renderState.mBlendFactorRgba );
+			#endif
+				
+				for (int32_t groupIdx = 0; groupIdx < m_bunnyMesh.m_groups.size(); groupIdx++) {
+					bgfx::setIndexBuffer( m_bunnyMesh.m_groups[groupIdx].m_ibh );
+					bgfx::setVertexBuffer( 0, m_bunnyMesh.m_groups[groupIdx].m_vbh );
+					// Submit
+					bgfx::submit( myViewPass, m_shaderProg_coloredLights, sortingDepth, BGFX_DISCARD_NONE );
+				}
+			
+
+				//// Columns.
+				//for (uint8_t ii = 0; ii < 4; ++ii)
+				//{
+				//	//m_columnMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
+				//	m_columnMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
+				//		, columnMtx[ii]
+				//		, m_shaderProg_coloredLights
+				//		, s_renderStates[RenderState::StencilReflection_DrawScene]
+				//	);
+				//}
+			}
+		}
+	}
+
+	void DrawScene2StateKeep( const bgfx::ViewId myViewPass, const float  floorMtx[16], /*const float  bunnyMtx[16],*/ const float columnMtx[4][16] ) {
+		{ // draw Scene 1
+
+		  // using same view pass as previous render calls => just set the same val and don't need to setup views and RTs
+		  //const int32_t myViewPass = 0; // note: may be the same as "initialPass"
+
+			const uint32_t sortingDepth = 0;
+
+			bgfx::touch( myViewPass );
+
+			// Setup views and render targets. => necessary when new view pass is used!
+			bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			bgfx::setViewTransform( myViewPass, m_viewState.m_view, m_viewState.m_proj );
+
+
+			// Set uniforms
+			s_uniforms.submitPerDrawUniforms(); // seems not to be needed...
+
+			{ // draw groundplane
+			  // Set texture
+				//bgfx::setTexture( 0, s_texColorUniformHandle, m_fieldstoneTex );
+				bgfx::setTexture( 0, s_texColorUniformHandle, m_figureTex );
+
+				// Set model matrix for rendering.
+				bgfx::setTransform( floorMtx );
+				bgfx::setIndexBuffer( m_hplaneMesh.m_groups[0].m_ibh );
+				bgfx::setVertexBuffer( 0, m_hplaneMesh.m_groups[0].m_vbh );
+
+				// Apply render state
+				const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+				bgfx::setStencil(
+					renderState.mFrontStencil,
+					renderState.mBackStencil );
+				bgfx::setState(
+					renderState.mState,
+					renderState.mBlendFactorRgba );
+
+				// Submit
+				bgfx::submit( myViewPass, m_shaderProg_textured, sortingDepth, BGFX_DISCARD_NONE );
+			}
+			{ 
+				// keep (most) state after each submit!
+				// Set model matrix for rendering.
+				//bgfx::setTransform( bunnyMtx );
+
+			#if 0// Apply render state
+				const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+				bgfx::setStencil(
+					renderState.mFrontStencil,
+					renderState.mBackStencil );
+				bgfx::setState(
+					renderState.mState,
+					renderState.mBlendFactorRgba );
+			#endif
+
+				//for (int32_t groupIdx = 0; groupIdx < m_bunnyMesh.m_groups.size(); groupIdx++) {
+				//	bgfx::setIndexBuffer( m_bunnyMesh.m_groups[groupIdx].m_ibh );
+				//	bgfx::setVertexBuffer( 0, m_bunnyMesh.m_groups[groupIdx].m_vbh );
+				//	// Submit
+				//	bgfx::submit( myViewPass, m_shaderProg_coloredLights, sortingDepth, BGFX_DISCARD_NONE );
+				//}
+
+				
+				// Columns.
+				bgfx::setTexture( 0, s_texColorUniformHandle, m_fieldstoneTex );
+				for (uint8_t ii = 0; ii < 4; ++ii)
+				{
+					bgfx::setTransform( columnMtx[ii] );
+
+					for (int32_t groupIdx = 0; groupIdx < m_columnMesh.m_groups.size(); groupIdx++) {
+						bgfx::setIndexBuffer( m_columnMesh.m_groups[groupIdx].m_ibh );
+						bgfx::setVertexBuffer( 0, m_columnMesh.m_groups[groupIdx].m_vbh );
+						// Submit
+						bgfx::submit( myViewPass, m_shaderProg_coloredLights, sortingDepth, BGFX_DISCARD_NONE );
+					}
+
+					//m_columnMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
+					//m_columnMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
+					//	, columnMtx[ii]
+					//	, m_shaderProg_coloredLights
+					//	, s_renderStates[RenderState::StencilReflection_DrawScene]
+					//);
+				}
+			}
+		}
 	}
 
 	virtual bool update() override
@@ -913,6 +1178,22 @@ public:
 				, 0.0f   //translateZ
 			);
 
+			const float scene2_x = 50.0f;
+
+			float floorMtx2[16];
+			bx::mtxSRT( floorMtx2
+				, 20.0f  //scaleX
+				, 20.0f  //scaleY
+				, 20.0f  //scaleZ
+				, 0.0f //rotX
+				, 0.0f //rotY
+				, 0.0f   //rotZ
+				, 0.0f + scene2_x   //translateX
+				, 0.0f   //translateY
+				, 0.0f   //translateZ
+			);
+
+
 			// Portal 1 position.
 			float portal1_Mtx[16];
 			bx::mtxSRT( portal1_Mtx
@@ -936,9 +1217,9 @@ public:
 				, bx::kPiHalf   //rotX
 				, -1.6f * bx::kPiQuarter   //rotY
 				, 0.0f   //rotZ
-				, 25.0f   //translateX
+				, 25.0f + scene2_x * 0.33f   //translateX
 				, 5.0f   //translateY
-				, 20.0f   //translateZ
+				, 20.0f + scene2_x * 0.125f   //translateZ
 			);
 
 			// Bunny position.
@@ -959,10 +1240,10 @@ public:
 			const float dist = 14.0f;
 			const float columnPositions[4][3] =
 			{
-				{  dist, 0.0f,  dist },
-				{ -dist, 0.0f,  dist },
-				{  dist, 0.0f, -dist },
-				{ -dist, 0.0f, -dist },
+				{  dist + scene2_x, 0.0f,  dist },
+				{ -dist + scene2_x, 0.0f,  dist },
+				{  dist + scene2_x, 0.0f, -dist },
+				{ -dist + scene2_x, 0.0f, -dist },
 			};
 
 			float columnMtx[4][16];
@@ -1007,8 +1288,16 @@ public:
 
 			{
 
-				{ // draw Portal 1
+				{
 					const int32_t myViewPass = 1;
+					//DrawScene1( myViewPass, floorMtx, bunnyMtx );
+					DrawScene1StateKeep( myViewPass, floorMtx, bunnyMtx );
+					DrawScene2StateKeep( myViewPass, floorMtx2, /*bunnyMtx,*/ columnMtx );
+				}
+
+
+				{ // draw Portal 1
+					const int32_t myViewPass = 2;
 					bgfx::touch(myViewPass);
 
 					bgfx::setViewRect(myViewPass, 0, 0, uint16_t(m_viewState.m_width), uint16_t(m_viewState.m_height) );
@@ -1042,33 +1331,30 @@ public:
 					bgfx::submit( myViewPass, m_shaderProg_textured );
 				}
 
-				{ // draw Groundplne
-					
-					// using same view pass as previous render calls => just set the same val and don't need to setup views and RTs
-					//const int32_t myViewPass = 0; // note: may be the same as "initialPass"
 
+				{ // draw Portal 2
 					const int32_t myViewPass = 2;
-
 					bgfx::touch(myViewPass);
 
-					// Setup views and render targets. => necessary when new view pass is used!
 					bgfx::setViewRect(myViewPass, 0, 0, uint16_t(m_viewState.m_width), uint16_t(m_viewState.m_height) );
+					// Setup views and render targets.
 					bgfx::setViewTransform(myViewPass, m_viewState.m_view, m_viewState.m_proj);
-					
 
 					// Set uniforms
-					//s_uniforms.submitPerDrawUniforms();
+					s_uniforms.submitPerDrawUniforms();
 
 					// Set texture
 					bgfx::setTexture( 0, s_texColorUniformHandle, m_figureTex );
 
 					// Set model matrix for rendering.
-					bgfx::setTransform( floorMtx );
+					bgfx::setTransform( portal2_Mtx );
 					bgfx::setIndexBuffer( m_hplaneMesh.m_groups[0].m_ibh );
 					bgfx::setVertexBuffer( 0, m_hplaneMesh.m_groups[0].m_vbh );
 
 					// Apply render state
-					const auto renderState = s_renderStates[RenderState::StencilReflection_DrawScene];
+					auto renderState = s_renderStates[RenderState::StencilReflection_CraftStencil];
+					setStencilRefVal( renderState.mFrontStencil, 64 );
+
 					bgfx::setStencil(
 						renderState.mFrontStencil,
 						renderState.mBackStencil );
@@ -1077,8 +1363,9 @@ public:
 						renderState.mBlendFactorRgba );
 
 					// Submit
-					bgfx::submit( myViewPass, m_shaderProg_coloredLights );
+					bgfx::submit( myViewPass, m_shaderProg_textured );
 				}
+
 
 
 			}
@@ -1212,7 +1499,7 @@ public:
 				mtxBillboard( lightMtx, m_viewState.m_view, lightPosRadius[ii], lightScale );
 				m_vplaneMesh.submit( RENDER_VIEWID_RANGE1_PASS_7
 					, lightMtx
-					, m_programColorTexture
+					, m_shaderProg_colorTexture
 					, s_renderStates[RenderState::Custom_BlendLightTexture]
 					, m_flareTex
 				);
@@ -1268,7 +1555,7 @@ public:
 
 	bgfx::ProgramHandle m_programTextureLighting;
 	bgfx::ProgramHandle m_shaderProg_coloredLights;
-	bgfx::ProgramHandle m_programColorTexture;
+	bgfx::ProgramHandle m_shaderProg_colorTexture;
 	bgfx::ProgramHandle m_programColorBlack;
 	bgfx::ProgramHandle m_shaderProg_textured;
 
