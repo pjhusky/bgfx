@@ -824,6 +824,7 @@ public:
 			ImVec2( m_viewState.m_width / 5.0f, m_viewState.m_height / 2.0f )
 			, ImGuiCond_FirstUseEver
 		);
+	#if 0
 		ImGui::Begin( "Settings"
 			, NULL
 			, 0
@@ -837,6 +838,7 @@ public:
 		ImGui::Checkbox( "Update scene", &m_updateScene );
 
 		ImGui::End();
+	#endif
 
 		imguiEndFrame();
 	}
