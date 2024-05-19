@@ -615,6 +615,8 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		entry::setWindowTitle(kDefaultWindowHandle, title);
 		setWindowSize(kDefaultWindowHandle, ENTRY_DEFAULT_WIDTH, ENTRY_DEFAULT_HEIGHT);
 
+		setWindowPos( kDefaultWindowHandle, 0, 0 );
+
 		sortApps();
 
 		const char* find = "";
