@@ -164,8 +164,18 @@ struct Camera
 
 		if (m_mouseDown)
 		{
-			const int32_t deltaX = m_mouseNow.m_mx - m_mouseLast.m_mx;
-			const int32_t deltaY = m_mouseNow.m_my - m_mouseLast.m_my;
+			int32_t deltaX = 0;
+			int32_t deltaY = 0;
+
+			static bool shouldCaptureMouse = true; // HACK - needs to match var in entry_windows.cpp
+			if (!shouldCaptureMouse) {
+				deltaX = m_mouseNow.m_mx - m_mouseLast.m_mx;
+				deltaY = m_mouseNow.m_my - m_mouseLast.m_my;
+			} else {
+				deltaX = m_mouseNow.m_mx;
+				deltaY = m_mouseNow.m_my;
+			}
+			
 
 			m_horizontalAngle += m_mouseSpeed * float(deltaX);
 			m_verticalAngle   -= m_mouseSpeed * float(deltaY);

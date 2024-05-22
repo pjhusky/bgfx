@@ -785,7 +785,14 @@ namespace entry
 							setMousePos(_hwnd, m_mx, m_my);
 						}
 
-						m_eventQueue.postMouseEvent(findHandle(_hwnd), mx, my, m_mz);
+						static bool shouldCaptureMouse = true; // HACK - needs to match var in camera.cpp ; also not OS independent
+						if (!shouldCaptureMouse) {
+							m_eventQueue.postMouseEvent( findHandle( _hwnd ), mx, my, m_mz );
+						} else {
+							m_eventQueue.postMouseEvent( findHandle( _hwnd ), mx - m_width / 2, my - m_height / 2, m_mz );
+							ShowCursor( FALSE );
+							setMousePos( _hwnd, m_width / 2, m_height / 2 );
+						}
 					}
 					break;
 
@@ -804,10 +811,11 @@ namespace entry
 				case WM_LBUTTONUP:
 				case WM_LBUTTONDBLCLK:
 					{
-						mouseCapture(_hwnd, _id == WM_LBUTTONDOWN);
+						const bool shouldCapture = ( _id == WM_LBUTTONDOWN );
+						mouseCapture(_hwnd, shouldCapture);
 						int32_t mx = GET_X_LPARAM(_lparam);
 						int32_t my = GET_Y_LPARAM(_lparam);
-						m_eventQueue.postMouseEvent(findHandle(_hwnd), mx, my, m_mz, MouseButton::Left, _id == WM_LBUTTONDOWN);
+						m_eventQueue.postMouseEvent(findHandle(_hwnd), mx, my, m_mz, MouseButton::Left, shouldCapture);
 					}
 					break;
 
@@ -826,10 +834,35 @@ namespace entry
 				case WM_RBUTTONUP:
 				case WM_RBUTTONDBLCLK:
 					{
-						mouseCapture(_hwnd, _id == WM_RBUTTONDOWN);
+						const bool shouldCapture = (_id == WM_RBUTTONDOWN);
+						//m_shouldCapture = shouldCapture;
+						//setMouseLock( _hwnd, shouldCapture );
+						mouseCapture(_hwnd, shouldCapture);
 						int32_t mx = GET_X_LPARAM(_lparam);
 						int32_t my = GET_Y_LPARAM(_lparam);
-						m_eventQueue.postMouseEvent(findHandle(_hwnd), mx, my, m_mz, MouseButton::Right, _id == WM_RBUTTONDOWN);
+						m_eventQueue.postMouseEvent(findHandle(_hwnd), mx, my, m_mz, MouseButton::Right, shouldCapture);
+
+						/*
+						printf( "RMB\n" );
+
+						if (shouldCapture) {
+							printf( "RMB down\n" );
+							RECT winDim;
+							GetClientRect(_hwnd, &winDim);
+
+							int32_t winDimX = winDim.right;
+							int32_t winDimY = winDim.bottom;
+
+							//ShowCursor( FALSE );
+							//setMousePos(_hwnd, winDimX / 2, winDimY / 2);
+							setMousePos(_hwnd, m_width/2, m_height / 2);
+							m_mx = winDimX / 2;
+							m_my = winDimY / 2;
+						} else {
+							ShowCursor( TRUE );
+						}
+						*/
+						
 					}
 					break;
 
