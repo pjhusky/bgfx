@@ -54,12 +54,13 @@ struct PosNormalTexcoordVertex
 bgfx::VertexLayout PosNormalTexcoordVertex::ms_layout;
 
 static const float s_texcoord = 5.0f;
+static constexpr float s_hplaneScale = 20.0f;
 static PosNormalTexcoordVertex s_hplaneVertices[] =
 {
-	{ -1.0f, 0.0f,  1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), s_texcoord, s_texcoord },
-	{  1.0f, 0.0f,  1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), s_texcoord, 0.0f       },
-	{ -1.0f, 0.0f, -1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,       s_texcoord },
-	{  1.0f, 0.0f, -1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,       0.0f       },
+	{ -1.0f * s_hplaneScale, 0.0f,  1.0f * s_hplaneScale, encodeNormalRgba8(0.0f, 1.0f, 0.0f), s_texcoord, s_texcoord },
+	{  1.0f * s_hplaneScale, 0.0f,  1.0f * s_hplaneScale, encodeNormalRgba8(0.0f, 1.0f, 0.0f), s_texcoord, 0.0f       },
+	{ -1.0f * s_hplaneScale, 0.0f, -1.0f * s_hplaneScale, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,       s_texcoord },
+	{  1.0f * s_hplaneScale, 0.0f, -1.0f * s_hplaneScale, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,       0.0f       },
 };
 
 static PosNormalTexcoordVertex s_vplaneVertices[] =
@@ -302,9 +303,10 @@ struct RenderState
 		RS_CraftStencil = 0,
 		RS_CraftStencilDepthTestNoColorWrite,
 		RS_ClearStencilRefOnSurface,
-		RS_DrawReflected,
+
 		RS_BlendPlane,
 		RS_DrawScene,
+		RS_DrawSceneAtStencilRef,
 
 		Custom_BlendLightTexture,
 		Custom_DrawPlaneBottom,
@@ -322,6 +324,7 @@ static RenderState s_renderStates[RenderState::Count] =
 {
 	{ // RS_CraftStencil
 		.mState = BGFX_STATE_WRITE_RGB
+		//| BGFX_STATE_CULL
 		| BGFX_STATE_WRITE_Z
 		| BGFX_STATE_DEPTH_TEST_LESS
 		| BGFX_STATE_MSAA, 
@@ -337,48 +340,28 @@ static RenderState s_renderStates[RenderState::Count] =
 	},
 	{ // RS_CraftStencilDepthTestNoColorWrite
 		.mState = 0
-		| BGFX_STATE_WRITE_Z
-		| BGFX_STATE_DEPTH_TEST_LESS
-		| BGFX_STATE_MSAA, 
-	.mBlendFactorRgba = UINT32_MAX, 
-	.mFrontStencil = BGFX_STENCIL_TEST_ALWAYS         // pass always
-	| BGFX_STENCIL_FUNC_REF(1)         // value = 1
-	| BGFX_STENCIL_FUNC_RMASK(0xff)
-	| BGFX_STENCIL_OP_FAIL_S_REPLACE
-	//| BGFX_STENCIL_OP_FAIL_Z_REPLACE
-	| BGFX_STENCIL_OP_FAIL_Z_KEEP
-	| BGFX_STENCIL_OP_PASS_Z_REPLACE,   // store the value 
-	.mBackStencil = BGFX_STENCIL_NONE
-	},
-	{ // RS_ClearStencilRefOnSurface
-		.mState = 0
-		| BGFX_STATE_WRITE_Z
-	| BGFX_STATE_DEPTH_TEST_EQUAL
-	| BGFX_STATE_MSAA, 
-	.mBlendFactorRgba = UINT32_MAX, 
-	.mFrontStencil = BGFX_STENCIL_TEST_EQUAL         // pass always
-	| BGFX_STENCIL_FUNC_REF(1)         // value = 1
-	| BGFX_STENCIL_FUNC_RMASK(0xff)
-	| BGFX_STENCIL_OP_FAIL_S_ZERO
-	| BGFX_STENCIL_OP_FAIL_Z_KEEP
-	| BGFX_STENCIL_OP_PASS_Z_ZERO,   // store the value 
-	.mBackStencil = BGFX_STENCIL_NONE
-	},
-	{ // RS_DrawReflected
-		.mState = BGFX_STATE_WRITE_RGB
-		| BGFX_STATE_WRITE_A
-		| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
-		| BGFX_STATE_WRITE_Z
-		| BGFX_STATE_DEPTH_TEST_LESS
-		| BGFX_STATE_CULL_CW    //reflection matrix has inverted normals. using CCW instead of CW.
+		//| BGFX_STATE_WRITE_Z
+		| BGFX_STATE_DEPTH_TEST_LEQUAL
 		| BGFX_STATE_MSAA, 
 		.mBlendFactorRgba = UINT32_MAX, 
-		.mFrontStencil = BGFX_STENCIL_TEST_EQUAL
-		| BGFX_STENCIL_FUNC_REF(1)
-		| BGFX_STENCIL_FUNC_RMASK(1)
-		| BGFX_STENCIL_OP_FAIL_S_KEEP
+		.mFrontStencil = BGFX_STENCIL_TEST_ALWAYS         // pass always
+		| BGFX_STENCIL_FUNC_REF(1)         // value = 1
+		| BGFX_STENCIL_FUNC_RMASK(0xff)
+		| BGFX_STENCIL_OP_FAIL_S_REPLACE
+		//| BGFX_STENCIL_OP_FAIL_Z_REPLACE
 		| BGFX_STENCIL_OP_FAIL_Z_KEEP
-		| BGFX_STENCIL_OP_PASS_Z_KEEP, 
+		| BGFX_STENCIL_OP_PASS_Z_REPLACE,   // store the value 
+		.mBackStencil = BGFX_STENCIL_NONE
+	},
+	{ // RS_ClearStencilRefOnSurface
+		.mState = 0,
+		.mBlendFactorRgba = UINT32_MAX, 
+		.mFrontStencil = BGFX_STENCIL_TEST_EQUAL         // pass only at ref
+		| BGFX_STENCIL_FUNC_REF(1)         // value = 1
+		| BGFX_STENCIL_FUNC_RMASK(0xff)
+		| BGFX_STENCIL_OP_FAIL_S_ZERO
+		| BGFX_STENCIL_OP_FAIL_Z_KEEP
+		| BGFX_STENCIL_OP_PASS_Z_ZERO,   // store the value 
 		.mBackStencil = BGFX_STENCIL_NONE
 	},
 	{ // RS_BlendPlane
@@ -396,10 +379,25 @@ static RenderState s_renderStates[RenderState::Count] =
 		.mState = BGFX_STATE_WRITE_RGB
 		| BGFX_STATE_WRITE_Z
 		| BGFX_STATE_DEPTH_TEST_LESS
-		| BGFX_STATE_CULL_CCW
+		//| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA, 
 		.mBlendFactorRgba = UINT32_MAX, 
 		.mFrontStencil = BGFX_STENCIL_NONE, 
+		.mBackStencil = BGFX_STENCIL_NONE
+	},
+	{ // RS_DrawSceneAtStencilRef
+		.mState = BGFX_STATE_WRITE_RGB
+		| BGFX_STATE_WRITE_Z
+		| BGFX_STATE_DEPTH_TEST_LEQUAL
+		| BGFX_STATE_CULL_CCW
+		| BGFX_STATE_MSAA, 
+		.mBlendFactorRgba = UINT32_MAX, 
+		.mFrontStencil = BGFX_STENCIL_TEST_EQUAL         // pass only at ref
+		| BGFX_STENCIL_FUNC_REF(1)         // value = 1
+		| BGFX_STENCIL_FUNC_RMASK(0xff)
+		| BGFX_STENCIL_OP_FAIL_S_KEEP
+		| BGFX_STENCIL_OP_FAIL_Z_KEEP
+		| BGFX_STENCIL_OP_PASS_Z_KEEP, 
 		.mBackStencil = BGFX_STENCIL_NONE
 	},
 	{ // Custom_BlendLightTexture
@@ -881,7 +879,17 @@ public:
 		stencilRenderState |= BGFX_STENCIL_FUNC_REF( newVal );
 	}
 
-	void DrawScene1( const bgfx::ViewId myViewPass, const float projMtx[16], const float viewMtx[16], const float  floorMtx[16], const float  bunnyMtx[16] ) {
+	void DrawScene1(
+		const bgfx::ViewId myViewPass,
+		RenderState& renderState,
+		const float projMtx[16],
+		const float viewMtx[16],
+		uint16_t min_x,
+		uint16_t min_y, 
+		uint16_t dim_x,
+		uint16_t dim_y, 
+		const float  floorMtx[16],
+		const float  bunnyMtx[16] ) {
 		{ // draw Scene 1
 
 		  // using same view pass as previous render calls => just set the same val and don't need to setup views and RTs
@@ -890,7 +898,11 @@ public:
 			bgfx::touch( myViewPass );
 
 			// Setup views and render targets. => necessary when new view pass is used!
-			bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			//bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			bgfx::setViewRect(myViewPass, min_x, min_y, dim_x, dim_y );
+			bgfx::setViewScissor(myViewPass, min_x, min_y, dim_x, dim_y );
+
+
 			//bgfx::setViewTransform( myViewPass, m_viewState.m_view, m_viewState.m_proj );
 			bgfx::setViewTransform( myViewPass, viewMtx, projMtx );
 
@@ -908,7 +920,7 @@ public:
 				bgfx::setVertexBuffer( 0, m_hplaneMesh.m_groups[0].m_vbh );
 
 				// Apply render state
-				const auto renderState = s_renderStates[RenderState::RS_DrawScene];
+				//const auto renderState = s_renderStates[RenderState::RS_DrawScene];
 				bgfx::setStencil(
 					renderState.mFrontStencil,
 					renderState.mBackStencil );
@@ -953,7 +965,7 @@ public:
 				bgfx::setTransform( bunnyMtx );
 
 				// Apply render state
-				const auto renderState = s_renderStates[RenderState::RS_DrawScene];
+				//const auto renderState = s_renderStates[RenderState::RS_DrawScene];
 				bgfx::setStencil(
 					renderState.mFrontStencil,
 					renderState.mBackStencil );
@@ -984,7 +996,17 @@ public:
 		}
 	}
 
-	void DrawScene1StateKeep( const bgfx::ViewId myViewPass, const float projMtx[16], const float viewMtx[16], const float floorMtx[16], const float bunnyMtx[16] ) {
+	void DrawScene1StateKeep(
+		const bgfx::ViewId myViewPass,
+		RenderState& renderState,
+		const float projMtx[16],
+		const float viewMtx[16],
+		uint16_t min_x,
+		uint16_t min_y, 
+		uint16_t dim_x,
+		uint16_t dim_y, 
+		const float floorMtx[16],
+		const float bunnyMtx[16] ) {
 		{ // draw Scene 1
 
 		  // using same view pass as previous render calls => just set the same val and don't need to setup views and RTs
@@ -995,7 +1017,10 @@ public:
 			bgfx::touch( myViewPass );
 
 			// Setup views and render targets. => necessary when new view pass is used!
-			bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			//bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			bgfx::setViewRect(myViewPass, min_x, min_y, dim_x, dim_y );
+			bgfx::setViewScissor(myViewPass, min_x, min_y, dim_x, dim_y );
+
 			//bgfx::setViewTransform( myViewPass, m_viewState.m_view, m_viewState.m_proj );
 			bgfx::setViewTransform( myViewPass, viewMtx, projMtx );
 
@@ -1013,7 +1038,7 @@ public:
 				bgfx::setVertexBuffer( 0, m_hplaneMesh.m_groups[0].m_vbh );
 
 				// Apply render state
-				const auto renderState = s_renderStates[RenderState::RS_DrawScene];
+				//const auto renderState = s_renderStates[RenderState::RS_DrawScene];
 				bgfx::setStencil(
 					renderState.mFrontStencil,
 					renderState.mBackStencil );
@@ -1061,7 +1086,18 @@ public:
 		}
 	}
 
-	void DrawScene2StateKeep( const bgfx::ViewId myViewPass, const float projMtx[16], const float viewMtx[16], const float  floorMtx[16], /*const float  bunnyMtx[16],*/ const float columnMtx[4][16] ) {
+	void DrawScene2StateKeep(
+		const bgfx::ViewId myViewPass,
+		RenderState& renderState,
+		const float projMtx[16],
+		const float viewMtx[16],
+		uint16_t min_x,
+		uint16_t min_y, 
+		uint16_t dim_x,
+		uint16_t dim_y, 
+		const float floorMtx[16],
+		/*const float  bunnyMtx[16],*/
+		const float columnMtx[4][16] ) {
 		{ // draw Scene 1
 
 		  // using same view pass as previous render calls => just set the same val and don't need to setup views and RTs
@@ -1072,7 +1108,10 @@ public:
 			bgfx::touch( myViewPass );
 
 			// Setup views and render targets. => necessary when new view pass is used!
-			bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			//bgfx::setViewRect( myViewPass, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
+			bgfx::setViewRect(myViewPass, min_x, min_y, dim_x, dim_y );
+			bgfx::setViewScissor(myViewPass, min_x, min_y, dim_x, dim_y );
+
 			//bgfx::setViewTransform( myViewPass, m_viewState.m_view, m_viewState.m_proj );
 			bgfx::setViewTransform( myViewPass, viewMtx, projMtx );
 
@@ -1091,7 +1130,7 @@ public:
 				bgfx::setVertexBuffer( 0, m_hplaneMesh.m_groups[0].m_vbh );
 
 				// Apply render state
-				const auto renderState = s_renderStates[RenderState::RS_DrawScene];
+				//const auto renderState = s_renderStates[RenderState::RS_DrawScene];
 				bgfx::setStencil(
 					renderState.mFrontStencil,
 					renderState.mBackStencil );
@@ -1165,6 +1204,8 @@ public:
 	) {
 
 		bgfx::setViewRect(myViewPass, min_x, min_y, dim_x, dim_y );
+		bgfx::setViewScissor(myViewPass, min_x, min_y, dim_x, dim_y );
+
 		// Setup views and render targets.
 		bgfx::setViewTransform(myViewPass, viewMtx, projMtx);
 
@@ -1200,6 +1241,8 @@ public:
 
 	virtual bool update() override
 	{
+		/*cmdExec( "cmdMouseLock" );*/
+
 		if (!entry::processEvents( m_viewState.m_width, m_viewState.m_height, m_debug, m_reset, &m_mouseState ))
 		{
 			UpdateImGui();
@@ -1227,7 +1270,7 @@ public:
 			// Update camera.
 			cameraUpdate( deltaTime, m_mouseState, ImGui::MouseOverArea() );
 			cameraGetViewMtx( m_viewState.m_view );
-
+			
 			static float lightTimeAccumulator = 0.0f;
 			if (m_updateLights)
 			{
@@ -1253,9 +1296,9 @@ public:
 
 			float floorMtx[16];
 			bx::mtxSRT( floorMtx
-				, 20.0f  //scaleX
-				, 20.0f  //scaleY
-				, 20.0f  //scaleZ
+				, 1.0f  //scaleX
+				, 1.0f  //scaleY
+				, 1.0f  //scaleZ
 				, 0.0f //rotX
 				, 0.0f //rotY
 				, 0.0f   //rotZ
@@ -1268,9 +1311,9 @@ public:
 
 			float floorMtx2[16];
 			bx::mtxSRT( floorMtx2
-				, 20.0f  //scaleX
-				, 20.0f  //scaleY
-				, 20.0f  //scaleZ
+				, 1.0f  //scaleX
+				, 1.0f  //scaleY
+				, 1.0f  //scaleZ
 				, 0.0f //rotX
 				, 0.0f //rotY
 				, 0.0f   //rotZ
@@ -1283,29 +1326,29 @@ public:
 			// Portal 1 position.
 			float portal1_Mtx[16];
 			bx::mtxSRT( portal1_Mtx
-				, 10.0f  //scaleX
-				, 10.0f  //scaleY
-				, 10.0f  //scaleZ
+				, 1.0f  //scaleX
+				, 1.0f  //scaleY
+				, 1.0f  //scaleZ
 				, bx::kPiHalf   //rotX
-				, 1.6f * bx::kPiQuarter   //rotY
+				, 1.6f * bx::kPiQuarter + bx::kPi //rotY
 				, 0.0f   //rotZ
-				, -25.0f   //translateX
+				, -15.0f   //translateX
 				, 5.0f   //translateY
-				, 20.0f   //translateZ
+				, 2.0f   //translateZ
 			);
 
 			// Portal 2 position.
 			float portal2_Mtx[16];
 			bx::mtxSRT( portal2_Mtx
-				, 10.0f  //scaleX
-				, 10.0f  //scaleY
-				, 10.0f  //scaleZ
+				, 1.0f  //scaleX
+				, 1.0f  //scaleY
+				, 1.0f  //scaleZ
 				, bx::kPiHalf   //rotX
-				, -1.6f * bx::kPiQuarter   //rotY
+				, -1.6f * bx::kPiQuarter + bx::kPi //rotY
 				, 0.0f   //rotZ
-				, 25.0f + scene2_x * 0.33f   //translateX
-				, 5.0f   //translateY
-				, 20.0f + scene2_x * 0.125f   //translateZ
+				, 32.0f + scene2_x * 0.33f   //translateX
+				, 7.0f   //translateY
+				, 9.0f + scene2_x * 0.125f   //translateZ
 			);
 
 			// Bunny position.
@@ -1365,37 +1408,72 @@ public:
 			s_uniforms.m_color[2] = 0.60f;
 
 
-
-		#if 1
-
-			
-
 			//clearView( initialPass, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL, m_clearValues );
+
+			const uint8_t stencilRefVal_portal1 = 100;
+			const uint8_t stencilRefVal_portal2 = 200;
 
 			{
 
+				uint16_t minScr_x = 0;
+				uint16_t minScr_y = 0;
+				uint16_t dimScr_x = uint16_t( m_viewState.m_width );
+				uint16_t dimScr_y = uint16_t( m_viewState.m_height );
+
+
 				{
 					const int32_t myViewPass = 1;
-					//DrawScene1( myViewPass, m_viewState.m_proj, m_viewState.m_view, floorMtx, bunnyMtx );
-					DrawScene1StateKeep( myViewPass, m_viewState.m_proj, m_viewState.m_view, floorMtx, bunnyMtx );
-					DrawScene2StateKeep( myViewPass, m_viewState.m_proj, m_viewState.m_view, floorMtx2, /*bunnyMtx,*/ columnMtx );
+					//DrawScene1(
+					//	myViewPass,
+					//	s_renderStates[RenderState::RS_DrawScene],
+					//	m_viewState.m_proj,
+					//	m_viewState.m_view,
+					//	minScr_x,
+					//	minScr_y,
+					//	dimScr_x,
+					//	dimScr_y,
+					//	floorMtx,
+					//	bunnyMtx );
+
+					DrawScene1StateKeep(
+						myViewPass,
+						s_renderStates[RenderState::RS_DrawScene],
+						m_viewState.m_proj,
+						m_viewState.m_view,
+						minScr_x,
+						minScr_y,
+						dimScr_x,
+						dimScr_y,
+						floorMtx,
+						bunnyMtx );
+
+					DrawScene2StateKeep(
+						myViewPass,
+						s_renderStates[RenderState::RS_DrawScene],
+						m_viewState.m_proj,
+						m_viewState.m_view,
+						minScr_x,
+						minScr_y,
+						dimScr_x,
+						dimScr_y,
+						floorMtx2,
+						/*bunnyMtx,*/ columnMtx );
 				}
 
-
 				{
+					// draw portals establishing stencils (still from main view)
+
 					const int32_t myViewPass = 2;
 					bgfx::touch(myViewPass);
 
+
 					// draw portal 1
-					const uint8_t stencilRefVal1 = 127;
-					const uint16_t minScr_x = 0;
-					const uint16_t minScr_y = 0;
-					const uint16_t dimScr_x = uint16_t( m_viewState.m_width );
-					const uint16_t dimScr_y = uint16_t( m_viewState.m_height );
 					DrawPortal(
 						myViewPass,
-						s_renderStates[ RenderState::RS_CraftStencil ],
-						stencilRefVal1,
+						//s_renderStates[ RenderState::RS_DrawScene ],
+						s_renderStates[ RenderState::RS_CraftStencilDepthTestNoColorWrite ],
+						//s_renderStates[ RenderState::RS_CraftStencil ],
+						stencilRefVal_portal1,
 						m_shaderProg_textured,
 						m_viewState.m_proj,
 						m_viewState.m_view,
@@ -1406,195 +1484,118 @@ public:
 						portal1_Mtx
 					);
 
-					// draw Portal 2
-					const uint8_t stencilRefVal2 = 64;
-					DrawPortal(
-						myViewPass,
-						s_renderStates[ RenderState::RS_CraftStencil ],
-						stencilRefVal2,
-						m_shaderProg_textured,
-						m_viewState.m_proj,
-						m_viewState.m_view,
-						minScr_x,
-						minScr_y,
-						dimScr_x,
-						dimScr_y,
-						portal2_Mtx
-					);
+					//(void)stencilRefVal_portal2;
+					if (true) {
+						// draw Portal 2
+						DrawPortal(
+							myViewPass,
+							//s_renderStates[RenderState::RS_DrawScene],
+							s_renderStates[RenderState::RS_CraftStencilDepthTestNoColorWrite],
+							//s_renderStates[ RenderState::RS_CraftStencil ],
+							stencilRefVal_portal2,
+							m_shaderProg_textured,
+							m_viewState.m_proj,
+							m_viewState.m_view,
+							minScr_x,
+							minScr_y,
+							dimScr_x,
+							dimScr_y,
+							portal2_Mtx
+						);
+					}
 				}
-
 			}
 
+			{ // draw scene through the portal's point of view
+				const int32_t myViewPass = 3;
+
+				uint16_t minScr_x = 0;
+				uint16_t minScr_y = 0;
+				uint16_t dimScr_x = uint16_t( m_viewState.m_width );
+				uint16_t dimScr_y = uint16_t( m_viewState.m_height );
+
+
+				float viewRelToPortal1Mtx[16];
+				float tmp[16];
+
+
+				// suppose portal 1 looks through portal 2 and vice versa
+				float inverseViewMtx[16];
+				bx::mtxInverse( inverseViewMtx, m_viewState.m_view );
+
+
+				float inversePortal1Mtx[16];
+				bx::mtxInverse( inversePortal1Mtx, portal1_Mtx );
+
+				float inversePortal2Mtx[16];
+				bx::mtxInverse( inversePortal2Mtx, portal2_Mtx );
+
+
+				bx::mtxMul( tmp, inverseViewMtx, inversePortal2Mtx );
+				bx::mtxMul( viewRelToPortal1Mtx, tmp, portal1_Mtx );
+
+				float invViewRelToPortal1Mtx[16];
+				bx::mtxInverse( invViewRelToPortal1Mtx, viewRelToPortal1Mtx );
+
+
+				//{ // TEST - paßt!
+				//	const auto camPos = cameraGetPosition();
+				//	bx::Vec3 originPos{ 0.0f, 0.0f, 0.0f };
+				//	
+				//	const auto testCamPos = bx::mul( originPos, inverseViewMtx );
+				//	printf( "camPos     = ( %f | %f | %f )\n", camPos.x, camPos.y, camPos.z );
+				//	printf( "testCamPos = ( %f | %f | %f )\n", testCamPos.x, testCamPos.y, testCamPos.z );
+				//	printf("\n");
+				//}
+
+
+				auto renderState_portal1 = s_renderStates[RenderState::RS_DrawSceneAtStencilRef];
+				setStencilRefVal( renderState_portal1.mFrontStencil, stencilRefVal_portal2 );				
+				DrawScene1StateKeep(
+					myViewPass,
+					renderState_portal1,
+					m_viewState.m_proj,
+					invViewRelToPortal1Mtx,
+					minScr_x,
+					minScr_y,
+					dimScr_x,
+					dimScr_y,
+					floorMtx,
+					bunnyMtx );
+				
+
+				auto renderState_portal2 = s_renderStates[RenderState::RS_DrawSceneAtStencilRef];
+				setStencilRefVal( renderState_portal2.mFrontStencil, stencilRefVal_portal1 );
+
+				float viewRelToPortal2Mtx[16];
+
+				// OIDER!!! andere Reihenfolge!!!
+				bx::mtxMul( tmp, inverseViewMtx, inversePortal1Mtx );
+				bx::mtxMul( viewRelToPortal2Mtx, tmp, portal2_Mtx );
+
+				float invViewRelToPortal2Mtx[16];
+				bx::mtxInverse( invViewRelToPortal2Mtx, viewRelToPortal2Mtx );
+
+				DrawScene2StateKeep(
+					myViewPass,
+					renderState_portal2,
+					m_viewState.m_proj,
+
+					invViewRelToPortal2Mtx,
+
+					minScr_x,
+					minScr_y,
+					dimScr_x,
+					dimScr_y,
+					floorMtx2,
+					columnMtx );
+					
+			}
+
+			bgfx::setStencil( BGFX_STENCIL_NONE, BGFX_STENCIL_NONE );
 
 			bgfx::frame();
-			//bgfx::resetView( 0 );
-			//bgfx::resetView( 1 );
-			//bgfx::resetView( 2 );
 
-		#else
-			{
-			#if 0	//### First pass - Draw plane.
-
-				// Setup params for this scene.
-				s_uniforms.m_params.m_ambientPass = 1.0f;
-				s_uniforms.m_params.m_lightingPass = 1.0f;
-
-				// Floor.
-				m_hplaneMesh.submit( RENDER_VIEWID_RANGE1_PASS_0
-					, floorMtx
-					, m_programColorBlack
-					, s_renderStates[RenderState::RS_CraftStencil]
-				);
-			#endif
-
-			#if 0	//### Second pass - Draw reflected objects.
-
-				// Clear depth from previous pass.
-				clearView( RENDER_VIEWID_RANGE1_PASS_1, BGFX_CLEAR_DEPTH, m_clearValues );
-
-				// Compute reflected matrix.
-				float reflectMtx[16];
-				mtxReflected( reflectMtx, { 0.0f, 0.01f, 0.0f }, { 0.0f, 1.0f, 0.0f } );
-
-				// Reflect lights.
-				for (uint8_t ii = 0; ii < numLights; ++ii)
-				{
-					bx::Vec3 reflected = bx::mul( bx::load<bx::Vec3>( lightPosRadius[ii] ), reflectMtx );
-					bx::store( &s_uniforms.m_lightPosRadius[ii], reflected );
-					s_uniforms.m_lightPosRadius[ii][3] = lightPosRadius[ii][3];
-				}
-
-				// Reflect and submit bunny.
-				float mtxReflectedBunny[16];
-				bx::mtxMul( mtxReflectedBunny, bunnyMtx, reflectMtx );
-				m_bunnyMesh.submit( RENDER_VIEWID_RANGE1_PASS_1
-					, mtxReflectedBunny
-					, m_shaderProg_coloredLights
-					, s_renderStates[RenderState::RS_DrawReflected]
-				);
-
-				// Reflect and submit columns.
-				float mtxReflectedColumn[16];
-				for (uint8_t ii = 0; ii < 4; ++ii)
-				{
-					bx::mtxMul( mtxReflectedColumn, columnMtx[ii], reflectMtx );
-					m_columnMesh.submit( RENDER_VIEWID_RANGE1_PASS_1
-						, mtxReflectedColumn
-						, m_shaderProg_coloredLights
-						, s_renderStates[RenderState::RS_DrawReflected]
-					);
-				}
-
-				// Set lights back.
-				bx::memCopy( s_uniforms.m_lightPosRadius, lightPosRadius, numLights * 4 * sizeof( float ) );
-
-			#endif
-
-			#if 1	//### Third pass - Blend plane.
-
-				// Portal
-				m_hplaneMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
-					, floorMtx
-					, m_programTextureLighting
-					, s_renderStates[RenderState::RS_BlendPlane]
-					, m_fieldstoneTex
-				);
-
-				// Portal
-				m_hplaneMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
-					, portal1_Mtx
-					, m_programTextureLighting
-					, s_renderStates[RenderState::RS_BlendPlane]
-					, m_fieldstoneTex
-				);
-
-				m_hplaneMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
-					, portal2_Mtx
-					, m_programTextureLighting
-					, s_renderStates[RenderState::RS_BlendPlane]
-					, m_fieldstoneTex
-				);
-
-			#endif
-
-			#if 1//### Fourth pass - Draw everything else but the plane.
-
-				// Bunny.
-				//m_bunnyMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
-				m_bunnyMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
-					, bunnyMtx
-					, m_shaderProg_coloredLights
-					, s_renderStates[RenderState::RS_DrawScene]
-				);
-
-				// Columns.
-				for (uint8_t ii = 0; ii < 4; ++ii)
-				{
-					//m_columnMesh.submit(RENDER_VIEWID_RANGE1_PASS_3
-					m_columnMesh.submit( RENDER_VIEWID_RANGE1_PASS_2
-						, columnMtx[ii]
-						, m_shaderProg_coloredLights
-						, s_renderStates[RenderState::RS_DrawScene]
-					);
-				}
-			#endif
-
-
-			}
-
-			//lights
-			const float lightScale[3] = { 1.5f, 1.5f, 1.5f };
-			float lightMtx[16];
-			for (uint8_t ii = 0; ii < numLights; ++ii)
-			{
-				s_uniforms.m_color[0] = m_lightRgbInnerR[ii][0];
-				s_uniforms.m_color[1] = m_lightRgbInnerR[ii][1];
-				s_uniforms.m_color[2] = m_lightRgbInnerR[ii][2];
-
-				mtxBillboard( lightMtx, m_viewState.m_view, lightPosRadius[ii], lightScale );
-				m_vplaneMesh.submit( RENDER_VIEWID_RANGE1_PASS_7
-					, lightMtx
-					, m_shaderProg_colorTexture
-					, s_renderStates[RenderState::Custom_BlendLightTexture]
-					, m_flareTex
-				);
-			}
-
-			// Draw floor bottom.
-			float floorBottomMtx[16];
-			bx::mtxSRT( floorBottomMtx
-				, 20.0f  //scaleX
-				, 20.0f  //scaleY
-				, 20.0f  //scaleZ
-				, 0.0f   //rotX
-				, 0.0f   //rotY
-				, 0.0f   //rotZ
-				, 0.0f   //translateX
-				, -0.1f  //translateY
-				, 0.0f   //translateZ
-			);
-
-			m_hplaneMesh.submit( RENDER_VIEWID_RANGE1_PASS_7
-				, floorBottomMtx
-				, m_shaderProg_textured
-				, s_renderStates[RenderState::Custom_DrawPlaneBottom]
-				, m_figureTex
-			);
-
-			// Setup view rect and transform for all used views.
-			setViewRectMask( s_viewMask, 0, 0, uint16_t( m_viewState.m_width ), uint16_t( m_viewState.m_height ) );
-			setViewTransformMask( s_viewMask, m_viewState.m_view, m_viewState.m_proj );
-			s_viewMask = 0;
-
-			// Advance to next frame. Rendering thread will be kicked to
-			// process submitted rendering primitives.
-			bgfx::frame();
-
-			//reset clear values on used views
-			clearViewMask( s_clearMask, BGFX_CLEAR_NONE, m_clearValues );
-			s_clearMask = 0;
-
-	#endif
 			return true;
 		}
 
